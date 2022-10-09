@@ -1,12 +1,11 @@
-import { add } from ".";
-
 class ReactiveEffect {
   constructor(private _fn) {}
   run() {
     activeEffect = this;
-    this._fn();
+    return this._fn();
   }
 }
+
 let activeEffect;
 const targetMap = new Map();
 export function track(target, key) {
@@ -34,5 +33,5 @@ export function trigger(target, key) {
 export function effect(fn) {
   const _effect = new ReactiveEffect(fn);
   _effect.run();
-  return _effect;
+  return _effect.run.bind(_effect);
 }
