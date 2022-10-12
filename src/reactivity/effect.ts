@@ -1,11 +1,24 @@
 import { extend } from "../shared/index";
+
+let activeEffect;
+// 标记是否应该追踪依赖
+// 1.在effect外访问响应式数据，不应该追踪依赖
+let shouldTrack;
+const targetMap = new Map();
+
 class ReactiveEffect {
   private active = true;
   private deps = new Set();
   constructor(private _fn, public scheduler?, private onStop?: () => void) {}
   run() {
+    if (!this.active) {
+      return this._fn();
+    }
+    shouldTrack = true;
     activeEffect = this;
-    return this._fn();
+    const result = this._fn();
+    shouldTrack = false;
+    return result;
   }
   stop() {
     if (this.active) {
@@ -22,11 +35,11 @@ function cleanEffect(effect) {
   effect.deps.forEach((deps: any) => {
     deps.delete(effect);
   });
+  effect.deps.clear();
 }
 
-let activeEffect;
-const targetMap = new Map();
 export function track(target, key) {
+  if (!isTracking()) return;
   let depsMap = targetMap.get(target);
   if (!depsMap) {
     depsMap = new Map();
@@ -37,9 +50,13 @@ export function track(target, key) {
     deps = new Set();
     depsMap.set(key, deps);
   }
-  if (!activeEffect) return;
+  if (deps.has(activeEffect)) return;
   deps.add(activeEffect);
   activeEffect.deps.add(deps);
+}
+
+function isTracking() {
+  return shouldTrack && activeEffect !== undefined;
 }
 
 export function trigger(target, key) {
