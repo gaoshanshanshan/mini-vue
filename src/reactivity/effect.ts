@@ -6,7 +6,7 @@ let activeEffect;
 let shouldTrack;
 const targetMap = new Map();
 
-class ReactiveEffect {
+export class ReactiveEffect {
   private active = true;
   private deps = new Set();
   constructor(private _fn, public scheduler?, private onStop?: () => void) {}
