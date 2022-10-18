@@ -13,10 +13,10 @@ import { isObject } from "../shared/index";
  *            children为数组，假设数组元素都为vnode，通过patch递归的渲染子vnode
  * 4. processComponent会区分是挂载还是更新组件，挂载组件交给mountComponent执行
  *    4.1 mountComponent流程
- *      4.1.1 依据vnode创建组件实例 
+ *      4.1.1 依据vnode创建组件实例
  *      4.1.2 调用setupComponet初始化组件props、slots及调用setup函数拿到组件初始状态数据，最后保证render函数的存在
  *      4.1.3 调用setupRenderEffect执行render函数拿到subTree，渲染subTree（component可以理解为一组状态和视图的封装，
- *            要想渲染component，先要实例化组件，然后初始化其状态，最后再渲染组件的视图)；初始化过程可以叫做开箱的过程。 
+ *            要想渲染component，先要实例化组件，然后初始化其状态，最后再渲染组件的视图)；初始化过程可以叫做开箱的过程。
  */
 
 export function render(vnode, container) {
@@ -37,7 +37,7 @@ function processElement(vnode: any, container: any) {
 
 function mountElement(vnode: any, container: any) {
   const { type, props, children } = vnode;
-  const el = document.createElement(type);
+  const el = (vnode.el = document.createElement(type));
 
   // 处理子节点
   if (typeof children === "string") {
@@ -75,6 +75,8 @@ function mountComponent(vnode, container) {
 }
 
 function setupRenderEffect(instance, container) {
-  const subTree = instance.render();
+  const { proxy, vnode } = instance;
+  const subTree = instance.render.call(proxy);
   patch(subTree, container);
+  vnode.el = subTree.el;
 }
