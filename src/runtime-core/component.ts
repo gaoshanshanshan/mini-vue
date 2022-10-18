@@ -13,8 +13,10 @@ export function setupComponent(instance) {
 
 function setupStatefulComponent(instance: any) {
   const setup = instance.type.setup;
-  const setupResult = setup();
-  handleSetupResult(instance, setupResult);
+  if (setup) {
+    const setupResult = setup();
+    handleSetupResult(instance, setupResult);
+  }
 }
 
 function handleSetupResult(instance: any, setupResult: any) {
