@@ -4,7 +4,14 @@ export const App = {
     window.self = this;
     return h(
       "div",
-      {},
+      {
+        onClick() {
+          console.log("click");
+        },
+        onMousedown() {
+          console.log("mouse down");
+        },
+      },
       // [
       //   h("p", { class: "red" }, "hi"),
       //   h("p", { class: "blue" }, "min-vue"),
