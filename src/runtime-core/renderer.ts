@@ -1,10 +1,11 @@
 import { createComponentInstance, setupComponent } from "./component";
 import { ShapeFlags } from "../shared/ShapeFlags";
+import { Fragment, Text } from "./vnode";
 
 /**
  * 渲染流程
  * 1. render接收vnode，交给patch方法。patch方法为渲染入口，在遇到子vnode时会递归调用，执行渲染逻辑。
- * 2. patch会区分vnode类型，vnode为component交给processConponent，vnode为element交给processElement
+ * 2. patch会区分vnode类型，component交给processConponent，element交给processElement,fragment交给processFragment，text交给processText
  * 3. processElement会区分是挂载还是更新元素，挂载元素交给mountElement执行
  *    3.1 mountElement流程
  *      3.1.1 依据vnode.type创建对应的真实dom
@@ -17,6 +18,8 @@ import { ShapeFlags } from "../shared/ShapeFlags";
  *      4.1.2 调用setupComponet初始化组件props、slots及调用setup函数拿到组件初始状态数据，最后保证render函数的存在
  *      4.1.3 调用setupRenderEffect执行render函数拿到subTree，渲染subTree（component可以理解为一组状态和视图的封装，
  *            要想渲染component，先要实例化组件，然后初始化其状态，最后再渲染组件的视图)；初始化过程可以叫做开箱的过程。
+ * 5. processFragment用来处理fragment类型节点，fragment的实现原理是不渲染节点，直接将children挂载到父vnode中，所以直接调用moutChiren将container传递即可
+ * 6. processText用来处理text类型节点，实现原理是创建textNode类型dom，然后将该dom挂载到container中。记得通过text类型vnode.el
  */
 
 export function render(vnode, container) {
@@ -24,11 +27,22 @@ export function render(vnode, container) {
 }
 
 function patch(vnode: any, container: any) {
-  const { shapeFlag } = vnode;
-  if (shapeFlag & ShapeFlags.ELEMENT) {
-    processElement(vnode, container);
-  } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
-    processComponent(vnode, container);
+  const { type } = vnode;
+  switch (type) {
+    case Fragment:
+      processFragment(vnode, container);
+      break;
+    case Text:
+      processText(vnode, container);
+      break;
+    default:
+      const { shapeFlag } = vnode;
+      if (shapeFlag & ShapeFlags.ELEMENT) {
+        processElement(vnode, container);
+      } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+        processComponent(vnode, container);
+      }
+      break;
   }
 }
 
@@ -86,4 +100,13 @@ function setupRenderEffect(instance, container) {
   const subTree = instance.render.call(proxy);
   patch(subTree, container);
   vnode.el = subTree.el;
+}
+
+function processFragment(vnode: any, container: any) {
+  mountChildren(vnode.children, container);
+}
+
+function processText(vnode: any, container: any) {
+  const textNode = (vnode.el = document.createTextNode(vnode.children));
+  container.append(textNode);
 }

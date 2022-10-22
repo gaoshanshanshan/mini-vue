@@ -1,6 +1,7 @@
-import { h, renderSlots } from "../../lib/mini-vue.esm.js";
+import { h, renderSlots, createTextVNode } from "../../lib/mini-vue.esm.js";
 
 export const Foo = {
+  name: "Foo",
   setup() {
     return {};
   },
@@ -10,6 +11,7 @@ export const Foo = {
     return h("div", {}, [
       renderSlots(fooSlots, "header", { age: 18 }),
       h("p", {}, `foo`),
+      createTextVNode("foo text"),
       renderSlots(fooSlots, "footer"),
     ]);
   },
