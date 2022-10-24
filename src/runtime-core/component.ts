@@ -22,13 +22,24 @@ export function setupComponent(instance) {
   setupStatefulComponent(instance);
 }
 
+let currentInstance = null;
+export function getCurrentInstance() {
+  return currentInstance;
+}
+
+function setCurrentInstance(instance) {
+  currentInstance = instance;
+}
+
 function setupStatefulComponent(instance: any) {
   instance.proxy = new Proxy({ _: instance }, PublicInstanceProxyHandlers);
   const setup = instance.type.setup;
   if (setup) {
+    setCurrentInstance(instance);
     const setupResult = setup(shallowReadonly(instance.props), {
       emit: instance.emit,
     });
+    setCurrentInstance(null);
     handleSetupResult(instance, setupResult);
   }
 }
