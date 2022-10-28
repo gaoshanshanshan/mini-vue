@@ -2,6 +2,7 @@ import { createComponentInstance, setupComponent } from "./component";
 import { ShapeFlags } from "../shared/ShapeFlags";
 import { Fragment, Text } from "./vnode";
 import { createAppAPI } from "./createApp";
+import { effect } from "../reactivity";
 
 /**
  * 渲染流程
@@ -26,31 +27,35 @@ export function createRenderer(options) {
   const { createElement, patchProp, insert } = options;
 
   function render(vnode, container) {
-    patch(vnode, container, null);
+    patch(null, vnode, container, null);
   }
 
-  function patch(vnode: any, container: any, parentComponent) {
-    const { type } = vnode;
+  function patch(n1, n2: any, container: any, parentComponent) {
+    const { type } = n2;
     switch (type) {
       case Fragment:
-        processFragment(vnode, container, parentComponent);
+        processFragment(n1, n2, container, parentComponent);
         break;
       case Text:
-        processText(vnode, container);
+        processText(n1, n2, container);
         break;
       default:
-        const { shapeFlag } = vnode;
+        const { shapeFlag } = n2;
         if (shapeFlag & ShapeFlags.ELEMENT) {
-          processElement(vnode, container, parentComponent);
+          processElement(n1, n2, container, parentComponent);
         } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
-          processComponent(vnode, container, parentComponent);
+          processComponent(n1, n2, container, parentComponent);
         }
         break;
     }
   }
 
-  function processElement(vnode: any, container: any, parentComponent) {
-    mountElement(vnode, container, parentComponent);
+  function processElement(n1, n2: any, container: any, parentComponent) {
+    if (!n1) {
+      mountElement(n2, container, parentComponent);
+    } else {
+      updateElement(n1, n2, container);
+    }
   }
 
   function mountElement(vnode: any, container: any, parentComponent) {
@@ -74,14 +79,19 @@ export function createRenderer(options) {
     insert(el, container);
   }
 
+  function updateElement(n1: any, n2: any, container: any) {
+    console.log("n1", n1);
+    console.log("n2", n2);
+  }
+
   function mountChildren(children: any[], container: any, parentComponent) {
     children.forEach((child) => {
-      patch(child, container, parentComponent);
+      patch(null, child, container, parentComponent);
     });
   }
 
-  function processComponent(vnode: any, container: any, parentComponent) {
-    mountComponent(vnode, container, parentComponent);
+  function processComponent(n1, n2: any, container: any, parentComponent) {
+    mountComponent(n2, container, parentComponent);
   }
 
   function mountComponent(vnode, container, parentComponent) {
@@ -93,21 +103,33 @@ export function createRenderer(options) {
   }
 
   function setupRenderEffect(instance, container) {
-    const { proxy, vnode } = instance;
-    const subTree = instance.render.call(proxy);
-    patch(subTree, container, instance);
-    vnode.el = subTree.el;
+    effect(() => {
+      const { proxy, vnode, isMounted } = instance;
+      if (!isMounted) {
+        console.log("init");
+        const subTree = (instance.subTree = instance.render.call(proxy));
+        patch(null, subTree, container, instance);
+        vnode.el = subTree.el;
+        instance.isMounted = true;
+      } else {
+        console.log("update");
+        const { subTree: prevSubTree } = instance;
+        const subTree = instance.render.call(proxy);
+        instance.subTree = subTree;
+        patch(prevSubTree, subTree, container, instance);
+      }
+    });
   }
 
-  function processFragment(vnode: any, container: any, parentComponent) {
-    mountChildren(vnode.children, container, parentComponent);
+  function processFragment(n1, n2: any, container: any, parentComponent) {
+    mountChildren(n2.children, container, parentComponent);
   }
 
-  function processText(vnode: any, container: any) {
-    const textNode = (vnode.el = document.createTextNode(vnode.children));
+  function processText(n1, n2: any, container: any) {
+    const textNode = (n2.el = document.createTextNode(n2.children));
     insert(textNode, container);
   }
-  
+
   return {
     createApp: createAppAPI(render),
   };

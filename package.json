@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "test": "jest",
-    "build":"rollup -c rollup.config.js"
+    "build":"rollup -c rollup.config.js --watch"
   },
   "type":"module",
   "keywords": [],
