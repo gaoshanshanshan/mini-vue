@@ -25,7 +25,13 @@ import { EMPTY_OBJ } from "../shared";
  * 6. processText用来处理text类型节点，实现原理是创建textNode类型dom，然后将该dom挂载到container中。记得通过text类型vnode.el
  */
 export function createRenderer(options) {
-  const { createElement, patchProp: hostPatchProp, insert } = options;
+  const {
+    createElement,
+    patchProp: hostPatchProp,
+    insert: hostInsert,
+    remove: hostRemove,
+    setElementText: hostSetElementText,
+  } = options;
 
   function render(vnode, container) {
     patch(null, vnode, container, null);
@@ -55,7 +61,7 @@ export function createRenderer(options) {
     if (!n1) {
       mountElement(n2, container, parentComponent);
     } else {
-      updateElement(n1, n2, container);
+      updateElement(n1, n2, container, parentComponent);
     }
   }
 
@@ -65,7 +71,7 @@ export function createRenderer(options) {
 
     // 处理子节点
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
-      el.textContent = children;
+      hostSetElementText(el, children);
     } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
       mountChildren(children, el, parentComponent);
     }
@@ -77,14 +83,15 @@ export function createRenderer(options) {
     }
 
     // 挂载节点
-    insert(el, container);
+    hostInsert(el, container);
   }
 
-  function updateElement(n1: any, n2: any, container) {
+  function updateElement(n1: any, n2: any, container, parentComponent) {
     const el = (n2.el = n1.el);
     const oldProp = n1.props || EMPTY_OBJ;
     const newProp = n2.props || EMPTY_OBJ;
     patchProp(el, oldProp, newProp);
+    patchChildren(n1, n2, el, parentComponent);
   }
 
   function patchProp(el, oldProps, newProps) {
@@ -106,9 +113,33 @@ export function createRenderer(options) {
     }
   }
 
+  function patchChildren(n1, n2, container, parentComponent) {
+    const { shapeFlag: prevShageFlag, children: c1 } = n1;
+    const { shapeFlag, children: c2 } = n2;
+
+    if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+      if (prevShageFlag & ShapeFlags.ARRAY_CHILDREN) {
+        unmountChildren(c1);
+      }
+      if (c1 !== c2) {
+        hostSetElementText(container, c2);
+      }
+    } else {
+      if (prevShageFlag & ShapeFlags.TEXT_CHILDREN) {
+        hostSetElementText(container, "");
+        mountChildren(c2, container, parentComponent);
+      }
+    }
+  }
+
   function mountChildren(children: any[], container: any, parentComponent) {
     children.forEach((child) => {
       patch(null, child, container, parentComponent);
+    });
+  }
+  function unmountChildren(children) {
+    children.forEach((child) => {
+      hostRemove(child);
     });
   }
 
@@ -149,7 +180,7 @@ export function createRenderer(options) {
 
   function processText(n1, n2: any, container: any) {
     const textNode = (n2.el = document.createTextNode(n2.children));
-    insert(textNode, container);
+    hostInsert(textNode, container);
   }
 
   return {

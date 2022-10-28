@@ -23,11 +23,24 @@ function insert(el, parent) {
   parent.append(el);
 }
 
+function remove(el) {
+  const parent = el.parentNode;
+  if (parent) {
+    parent.removeChild(el);
+  }
+}
+
+function setElementText(el, text) {
+  el.textContent = text;
+}
+
 // 1.创建dom环境的渲染器
 const renderer = createRenderer({
   createElement,
   patchProp,
   insert,
+  remove,
+  setElementText,
 });
 
 // 2.渲染器会包装一个createApp函数，因为createApp依赖渲染器提供的render函数
