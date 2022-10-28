@@ -3,6 +3,7 @@ import { ShapeFlags } from "../shared/ShapeFlags";
 import { Fragment, Text } from "./vnode";
 import { createAppAPI } from "./createApp";
 import { effect } from "../reactivity";
+import { EMPTY_OBJ } from "../shared";
 
 /**
  * 渲染流程
@@ -24,7 +25,7 @@ import { effect } from "../reactivity";
  * 6. processText用来处理text类型节点，实现原理是创建textNode类型dom，然后将该dom挂载到container中。记得通过text类型vnode.el
  */
 export function createRenderer(options) {
-  const { createElement, patchProp, insert } = options;
+  const { createElement, patchProp: hostPatchProp, insert } = options;
 
   function render(vnode, container) {
     patch(null, vnode, container, null);
@@ -72,16 +73,37 @@ export function createRenderer(options) {
     // 处理props
     for (const key in props) {
       const val = props[key];
-      patchProp(el, key, val);
+      hostPatchProp(el, key, null, val);
     }
 
     // 挂载节点
     insert(el, container);
   }
 
-  function updateElement(n1: any, n2: any, container: any) {
-    console.log("n1", n1);
-    console.log("n2", n2);
+  function updateElement(n1: any, n2: any, container) {
+    const el = (n2.el = n1.el);
+    const oldProp = n1.props || EMPTY_OBJ;
+    const newProp = n2.props || EMPTY_OBJ;
+    patchProp(el, oldProp, newProp);
+  }
+
+  function patchProp(el, oldProps, newProps) {
+    if (oldProps !== newProps) {
+      for (const key in newProps) {
+        const prev = oldProps[key];
+        const next = newProps[key];
+        if (prev !== next) {
+          hostPatchProp(el, key, prev, next);
+        }
+      }
+    }
+    if (oldProps !== EMPTY_OBJ) {
+      for (const key in oldProps) {
+        if (!(key in newProps)) {
+          hostPatchProp(el, key, oldProps[key], null);
+        }
+      }
+    }
   }
 
   function mountChildren(children: any[], container: any, parentComponent) {
