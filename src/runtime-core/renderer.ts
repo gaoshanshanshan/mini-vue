@@ -4,6 +4,7 @@ import { Fragment, Text } from "./vnode";
 import { createAppAPI } from "./createApp";
 import { effect } from "../reactivity";
 import { EMPTY_OBJ } from "../shared";
+import { shouldUpdateComponent } from "./componentUpdateUtils";
 
 /**
  * 渲染流程
@@ -351,11 +352,29 @@ export function createRenderer(options) {
     parentComponent,
     anchor
   ) {
-    mountComponent(n2, container, parentComponent, anchor);
+    if (!n1) {
+      mountComponent(n2, container, parentComponent, anchor);
+    } else {
+      updateComponent(n1, n2);
+    }
+  }
+
+  function updateComponent(n1, n2) {
+    const instance = (n2.component = n1.component);
+    if (shouldUpdateComponent(n1, n2)) {
+      instance.next = n2;
+      instance.update();
+    } else {
+      n2.el = n1.el;
+      instance.vnode = n2;
+    }
   }
 
   function mountComponent(vnode, container, parentComponent, anchor) {
-    const instance = createComponentInstance(vnode, parentComponent);
+    const instance = (vnode.component = createComponentInstance(
+      vnode,
+      parentComponent
+    ));
     // 初始化组件props、slot、状态、以及render
     setupComponent(instance);
     // 渲染组件模板
@@ -363,7 +382,7 @@ export function createRenderer(options) {
   }
 
   function setupRenderEffect(instance, container, anchor) {
-    effect(() => {
+    instance.update = effect(() => {
       const { proxy, vnode, isMounted } = instance;
       if (!isMounted) {
         console.log("init");
@@ -373,12 +392,21 @@ export function createRenderer(options) {
         instance.isMounted = true;
       } else {
         console.log("update");
-        const { subTree: prevSubTree } = instance;
+        const { vnode, next, subTree: prevSubTree } = instance;
+        if (next) {
+          next.el = vnode.el;
+          updateComponentPreRender(instance, next);
+        }
         const subTree = instance.render.call(proxy);
         instance.subTree = subTree;
         patch(prevSubTree, subTree, container, instance, anchor);
       }
     });
+  }
+  function updateComponentPreRender(instance, nextVNode) {
+    instance.vnode = nextVNode;
+    instance.next = null;
+    instance.props = nextVNode.props;
   }
 
   function processFragment(
