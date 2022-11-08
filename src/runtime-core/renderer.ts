@@ -5,6 +5,7 @@ import { createAppAPI } from "./createApp";
 import { effect } from "../reactivity";
 import { EMPTY_OBJ } from "../shared";
 import { shouldUpdateComponent } from "./componentUpdateUtils";
+import { queueJob } from "./scheduler";
 
 /**
  * 渲染流程
@@ -382,26 +383,33 @@ export function createRenderer(options) {
   }
 
   function setupRenderEffect(instance, container, anchor) {
-    instance.update = effect(() => {
-      const { proxy, vnode, isMounted } = instance;
-      if (!isMounted) {
-        console.log("init");
-        const subTree = (instance.subTree = instance.render.call(proxy));
-        patch(null, subTree, container, instance, anchor);
-        vnode.el = subTree.el;
-        instance.isMounted = true;
-      } else {
-        console.log("update");
-        const { vnode, next, subTree: prevSubTree } = instance;
-        if (next) {
-          next.el = vnode.el;
-          updateComponentPreRender(instance, next);
+    instance.update = effect(
+      () => {
+        const { proxy, vnode, isMounted } = instance;
+        if (!isMounted) {
+          console.log("init");
+          const subTree = (instance.subTree = instance.render.call(proxy));
+          patch(null, subTree, container, instance, anchor);
+          vnode.el = subTree.el;
+          instance.isMounted = true;
+        } else {
+          console.log("update");
+          const { vnode, next, subTree: prevSubTree } = instance;
+          if (next) {
+            next.el = vnode.el;
+            updateComponentPreRender(instance, next);
+          }
+          const subTree = instance.render.call(proxy);
+          instance.subTree = subTree;
+          patch(prevSubTree, subTree, container, instance, anchor);
         }
-        const subTree = instance.render.call(proxy);
-        instance.subTree = subTree;
-        patch(prevSubTree, subTree, container, instance, anchor);
+      },
+      {
+        scheduler() {
+          queueJob(instance.update);
+        },
       }
-    });
+    );
   }
   function updateComponentPreRender(instance, nextVNode) {
     instance.vnode = nextVNode;
