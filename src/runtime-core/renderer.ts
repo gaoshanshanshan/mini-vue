@@ -25,6 +25,26 @@ import { queueJob } from "./scheduler";
  *            要想渲染component，先要实例化组件，然后初始化其状态，最后再渲染组件的视图)；初始化过程可以叫做开箱的过程。
  * 5. processFragment用来处理fragment类型节点，fragment的实现原理是不渲染节点，直接将children挂载到父vnode中，所以直接调用moutChiren将container传递即可
  * 6. processText用来处理text类型节点，实现原理是创建textNode类型dom，然后将该dom挂载到container中。记得通过text类型vnode.el
+ * 更新流程
+ * 1.用户修改响应式数据，会触发组件的effect再次执行，effect函数中会判断isMounted变量走到更新的流程
+ * 2.patch会接收到n1(prevVNode)和n2(nextVNode)，根据vnode类型交给不同的函数处理
+ * 3.processElement交给updateElement更新dom节点
+ *   3.1 将n1的el赋值给n2的el
+ *   3.2 通过patchProps将n2最新的prop更新到真实dom上
+ *   3.3 通过patchChildren更新子节点
+ *     3.3.1 children有string和array两种类型，新旧子几点对比也就会有四种情况
+ *           1) 新节点是string，旧节点也是string，通过hostSetElementText更新
+ *           2）新节点是stirng，旧节点是array，先卸载掉旧节点，再通过hostSetElementText更新
+ *           3）新节点是array，旧节点是string，先通过hostSetElementText清空子节点，再挂载新的子几点
+ *           4）新节点是array，纠结点也是array，通过diff算法来对比
+ * 4.processComponent交给updateComponent更新组件节点。
+ *   4.1 将n1的component复制给n2的component
+ *   4.2 将n2的props赋值给组件的props，组件的vnode指向n2
+ *   4.3 调用组件的render拿到新的subTree，调用patch更新subTree
+ * 值得学习的是将挂载及更新的逻辑放到了effect中:
+ * 当组件主动更新时，响应式数据会自动触发effect的执行
+ * 当父组件重新render，子组件被动更新时，可以手动调用组件的update方法，也会执行effect
+ * 另外，为了优化组件的更新，通过scheduler将更新的逻辑放到异步队列中，同一个tick中多次更新只会触发一次render
  */
 export function createRenderer(options) {
   const {
@@ -360,17 +380,6 @@ export function createRenderer(options) {
     }
   }
 
-  function updateComponent(n1, n2) {
-    const instance = (n2.component = n1.component);
-    if (shouldUpdateComponent(n1, n2)) {
-      instance.next = n2;
-      instance.update();
-    } else {
-      n2.el = n1.el;
-      instance.vnode = n2;
-    }
-  }
-
   function mountComponent(vnode, container, parentComponent, anchor) {
     const instance = (vnode.component = createComponentInstance(
       vnode,
@@ -380,6 +389,17 @@ export function createRenderer(options) {
     setupComponent(instance);
     // 渲染组件模板
     setupRenderEffect(instance, container, anchor);
+  }
+
+  function updateComponent(n1, n2) {
+    const instance = (n2.component = n1.component);
+    if (shouldUpdateComponent(n1, n2)) {
+      instance.next = n2;
+      instance.update();
+    } else {
+      n2.el = n1.el;
+      instance.vnode = n2;
+    }
   }
 
   function setupRenderEffect(instance, container, anchor) {
@@ -411,6 +431,7 @@ export function createRenderer(options) {
       }
     );
   }
+
   function updateComponentPreRender(instance, nextVNode) {
     instance.vnode = nextVNode;
     instance.next = null;

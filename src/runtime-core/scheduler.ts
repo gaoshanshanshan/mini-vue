@@ -14,6 +14,7 @@ export function queueJob(job) {
 }
 
 function queueFlush() {
+  // 上锁，多次queue job，只会打开一个flushJobs
   if (isFlushPending) return;
   isFlushPending = true;
   nextTick(flushJobs);
