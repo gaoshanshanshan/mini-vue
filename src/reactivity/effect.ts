@@ -9,7 +9,7 @@ const targetMap = new Map();
 export class ReactiveEffect {
   private active = true;
   private deps = new Set();
-  constructor(private _fn, public scheduler?, private onStop?: () => void) {}
+  constructor(private _fn, public scheduler?, public onStop?: () => void) {}
   run() {
     if (!this.active) {
       return this._fn();
