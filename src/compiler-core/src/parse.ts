@@ -1,5 +1,8 @@
 import { NodeTypes } from "./ast";
-
+const enum TagTypes {
+  Start,
+  End,
+}
 export function baseParse(content: string) {
   const context = createParserContext(content);
   return createRoot(parseChildren(context));
@@ -7,9 +10,14 @@ export function baseParse(content: string) {
 
 function parseChildren(context) {
   const nodes: any[] = [];
+  const s = context.source;
   let node;
-  if (context.source.startsWith("{{")) {
+  if (s.startsWith("{{")) {
     node = parseInterpolation(context);
+  } else if (s.startsWith("<")) {
+    if (/^[a-z]/.test(s[1])) {
+      node = parseElement(context);
+    }
   }
   nodes.push(node);
   return nodes;
@@ -37,6 +45,25 @@ function parseInterpolation(context) {
       type: NodeTypes.SIMPLE_EXPRESSION,
       content,
     },
+  };
+}
+
+function parseElement(context: any): any {
+  const element = parseTag(context, TagTypes.Start);
+  parseTag(context, TagTypes.End);
+  return element;
+}
+
+function parseTag(context: any, type: TagTypes) {
+  const match: any = /^<\/?([a-z]*)/i.exec(context.source);
+  const tag = match[1];
+  advanceBy(context, match[0].length);
+  advanceBy(context, 1);
+  console.log(match, "---" + context.source);
+  if (type === TagTypes.End) return;
+  return {
+    type: NodeTypes.ELEMENT,
+    tag,
   };
 }
 
