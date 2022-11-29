@@ -1,5 +1,6 @@
-export function transform(root, options) {
+export function transform(root, options = {}) {
   const context = createTransformContext(root, options);
+  createRootCodegen(root);
   traverseNode(root, context);
 }
 
@@ -25,4 +26,9 @@ function traverseNode(node: any, context: { root: any; nodeTransforms: any }) {
       traverseNode(child, context);
     });
   }
+}
+
+// 为codegen生成访问节点
+function createRootCodegen(root: any) {
+  root.codegenNode = root.children[0];
 }
