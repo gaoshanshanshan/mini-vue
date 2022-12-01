@@ -1,9 +1,9 @@
-import { generate } from "../src/codegen";
-import { baseParse } from "../src/parse";
-import { transform } from "../src/transform";
-import { transformElement } from "../src/transfors/transformElement";
-import { transformExpression } from "../src/transfors/transformsExpression";
-import { transformText } from "../src/transfors/transformText";
+import { generate } from "../codegen";
+import { baseParse } from "../parse";
+import { transform } from "../transform";
+import { transformElement } from "../transforms/transformElement";
+import { transformExpression } from "../transforms/transformsExpression";
+import { transformText } from "../transforms/transformText";
 
 describe("codegen", () => {
   it("string", () => {
