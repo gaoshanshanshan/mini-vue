@@ -5,6 +5,12 @@ import { shallowReadonly } from "../reactivity/reactive";
 import { emit } from "./componentEmit";
 import { initSlots } from "./componentSlots";
 
+// 运行时注册compiler函数
+let compiler;
+export function registerCompiler(_compiler) {
+  compiler = _compiler;
+}
+
 export function createComponentInstance(vnode, parent) {
   const instance = {
     vnode,
@@ -59,5 +65,11 @@ function handleSetupResult(instance: any, setupResult: any) {
 
 function finishComponentSetup(instance: any) {
   const Component = instance.type;
+  // 没有render函数，通过运行时编译拿到render
+  if (!Component.render && compiler) {
+    if (Component.template) {
+      Component.render = compiler(Component.template);
+    }
+  }
   instance.render = Component.render;
 }
